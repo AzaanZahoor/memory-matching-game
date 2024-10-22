@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Matching Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            color: #333;
+        }
+
+        h1 {
+            margin: 0 0 20px;
+            font-size: 2.5em;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 15px;
+            margin: 20px 0;
+        }
+
+        .card {
+            width: 100px;
+            height: 100px;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .card.matched {
+            background-color: #c1f0c1;
+            cursor: not-allowed;
+        }
+
+        .card.hidden {
+            background-color: #e0e0e0;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50; /* Green */
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 1.2em;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049; /* Darker green */
+        }
+
+        #about {
+            margin-top: 15px;
+            color: #4CAF50;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 1.2em;
+        }
+
+        #start-page, #game-page {
+            display: none;
+            width: 100%;
+        }
+
+        #start-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #game-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="start-page">
+        <h1>Welcome to the Memory Matching Game!</h1>
+        <button id="start-game">Start Game</button>
+        <p id="about">About</p>
+    </div>
+
+    <div id="game-page" style="display: none;">
+        <h1>Memory Matching Game</h1>
+        <div id="game-board"></div>
+        <div class="button-container">
+            <button id="restart-game" style="display:none;">Restart Game</button>
+            <button id="quit-game" style="display:none;">Quit Game</button>
+            <button id="suggest-recipe" style="display:none;">Suggest Recipe</button>
+        </div>
+    </div>
+
+    <script>
+        const startPage = document.getElementById('start-page');
+        const gamePage = document.getElementById('game-page');
+        const gameBoard = document.getElementById('game-board');
+        const restartButton = document.getElementById('restart-game');
+        const quitButton = document.getElementById('quit-game');
+        const suggestRecipeButton = document.getElementById('suggest-recipe');
+
+        let cardValues = [];
+        let firstCard = null;
+        let secondCard = null;
+        let lockBoard = false;
+        let matchCount = 0;
+
+        // Start the game when the Start Game button is clicked
+        document.getElementById('start-game').addEventListener('click', () => {
+            startPage.style.display = 'none';
+            gamePage.style.display = 'flex';
+            initializeGame();
+        });
+
+        // Function to initialize the game board
+        function initializeGame() {
+            resetGame();
+            const values = generateCardValues();
+            cardValues = shuffleArray([...values, ...values]); // Create pairs
+            renderGameBoard();
+        }
+
+        // Function to reset the game state
+        function resetGame() {
+            cardValues = [];
+            gameBoard.innerHTML = '';
+            firstCard = null;
+            secondCard = null;
+            lockBoard = false;
+            matchCount = 0;
+            restartButton.style.display = 'none'; // Hide restart button
+            quitButton.style.display = 'none'; // Hide quit button
+            suggestRecipeButton.style.display = 'none'; // Hide suggest recipe button
+        }
+
+        // Function to generate unique card values (1 - 8)
+        function generateCardValues() {
+            return Array.from({ length: 8 }, (_, i) => i + 1);
+        }
+
+        // Function to shuffle an array (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Function to render the game board
+        function renderGameBoard() {
+            gameBoard.innerHTML = '';
+            cardValues.forEach((value) => {
+                const card = document.createElement('div');
+                card.classList.add('card', 'hidden');
+                card.dataset.value = value;
+                card.addEventListener('click', () => handleCardClick(card));
+                gameBoard.appendChild(card);
+            });
+        }
+
+        // Function to handle card clicks
+        function handleCardClick(card) {
+            if (lockBoard || card === firstCard || card.classList.contains('matched')) return;
+
+            card.classList.remove('hidden');
+            card.textContent = card.dataset.value;
+
+            if (!firstCard) {
+                firstCard = card;
+            } else {
+                secondCard = card;
+                checkForMatch();
+            }
+        }
+
+        // Function to check if two cards match
+        function checkForMatch() {
+            lockBoard = true;
+            if (firstCard.dataset.value === secondCard.dataset.value) {
+                firstCard.classList.add('matched');
+                secondCard.classList.add('matched');
+                resetSelection();
+                matchCount++;
+
+                if (matchCount === cardValues.length / 2) {
+                    alert('Congratulations! You matched all pairs!');
+                    restartButton.style.display = 'block'; // Show restart button
+                    quitButton.style.display = 'block'; // Show quit button
+                    suggestRecipeButton.style.display = 'block'; // Show suggest recipe button
+                }
+            } else {
+                setTimeout(() => {
+                    firstCard.classList.add('hidden');
+                    secondCard.classList.add('hidden');
+                    firstCard.textContent = '';
+                    secondCard.textContent = '';
+                    resetSelection();
+                }, 1000);
+            }
+        }
+
+        // Function to reset the selection of cards
+        function resetSelection() {
+            [firstCard, secondCard] = [null, null];
+            lockBoard = false;
+        }
+
+        // Restart the game
+        restartButton.addEventListener('click', () => {
+            resetGame();
+            initializeGame();
+        });
+
+        // Quit the game and return to the start page
+        quitButton.addEventListener('click', () => {
+            startPage.style.display = 'flex';
+            gamePage.style.display = 'none';
+            resetGame();
+        });
+
+        // About section
+        document.getElementById('about').addEventListener('click', () => {
+            alert("About this game:\n\nDeveloper: Azaan Zahoor\n\nThis is a fun memory matching game where you can test your memory skills by matching pairs of cards.");
+        });
+
+        // Suggest a recipe based on ingredients
+        suggestRecipeButton.addEventListener('click', async () => {
+            const ingredients = cardValues.map(value => `Ingredient ${value}`); // Example ingredients
+            const recipeSuggestion = await fetchRecipeSuggestion(ingredients);
+            alert(recipeSuggestion);
+        });
+
+        // Function to fetch recipe suggestion
+        async function fetchRecipeSuggestion(ingredients) {
+            const prompt = `Suggest a recipe idea using these ingredients: ${ingredients.join(", ")}.`;
+            const response = await fetch(`YOUR_API_ENDPOINT`, { // Replace with your API endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    anthropic_version: "bedrock-2023-05-31",
+                    max_tokens: 1000,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `\n\nHuman: ${prompt}\n\nAssistant:`,
+                                },
+                            ],
+                        },
+                    ],
+                }),
+            });
+
+            const parsedResponse = await response.json();
+            return parsedResponse.content[0].text; // Adjust this based on your response structure
+        }
+    </script>
+</body>
+</html>
